@@ -49,16 +49,6 @@ resource "aws_s3_bucket" "bucket" {
       autoclean = var.log_auto_clean
     }
 
-    transition {
-      days          = var.log_standard_ia_days
-      storage_class = "STANDARD_IA"
-    }
-
-    transition {
-      days          = var.log_glacier_days
-      storage_class = "GLACIER"
-    }
-
     expiration {
       days = var.log_expiry_days
     }
@@ -184,7 +174,7 @@ data "aws_iam_policy_document" "bastion_host_policy_document" {
 }
 
 resource "aws_iam_policy" "bastion_host_policy" {
-  name   = "BastionHost"
+  name   = "Bastion"
   policy = data.aws_iam_policy_document.bastion_host_policy_document.json
 }
 
@@ -204,42 +194,6 @@ resource "aws_route53_record" "bastion_record_name" {
     name                   = aws_lb.bastion_lb.dns_name
     zone_id                = aws_lb.bastion_lb.zone_id
   }
-}
-
-resource "aws_lb" "bastion_lb" {
-  internal = var.is_lb_private
-  name     = "${local.name_prefix}-lb"
-
-  subnets = var.elb_subnets
-
-  load_balancer_type = "network"
-  tags               = merge(var.tags)
-}
-
-resource "aws_lb_target_group" "bastion_lb_target_group" {
-  name        = "${local.name_prefix}-lb-target"
-  port        = var.public_ssh_port
-  protocol    = "TCP"
-  vpc_id      = var.vpc_id
-  target_type = "instance"
-
-  health_check {
-    port     = "traffic-port"
-    protocol = "TCP"
-  }
-
-  tags = merge(var.tags)
-}
-
-resource "aws_lb_listener" "bastion_lb_listener_22" {
-  default_action {
-    target_group_arn = aws_lb_target_group.bastion_lb_target_group.arn
-    type             = "forward"
-  }
-
-  load_balancer_arn = aws_lb.bastion_lb.arn
-  port              = var.public_ssh_port
-  protocol          = "TCP"
 }
 
 resource "aws_iam_instance_profile" "bastion_host_profile" {
@@ -281,36 +235,3 @@ resource "aws_launch_template" "bastion_launch_template" {
   }
 }
 
-resource "aws_autoscaling_group" "bastion_auto_scaling_group" {
-  name_prefix = "ASG-${local.name_prefix}"
-  launch_template {
-    id      = aws_launch_template.bastion_launch_template.id
-    version = "$Latest"
-  }
-  max_size         = var.bastion_instance_count
-  min_size         = var.bastion_instance_count
-  desired_capacity = var.bastion_instance_count
-
-  vpc_zone_identifier = var.auto_scaling_group_subnets
-
-  default_cooldown          = 180
-  health_check_grace_period = 180
-  health_check_type         = "EC2"
-
-  target_group_arns = [
-    aws_lb_target_group.bastion_lb_target_group.arn,
-  ]
-
-  termination_policies = [
-    "OldestLaunchConfiguration",
-  ]
-
-  tags = concat(
-    list(map("key", "Name", "value", "ASG-${local.name_prefix}", "propagate_at_launch", true)),
-    local.tags_asg_format
-  )
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}

@@ -30,10 +30,6 @@ variable "cidrs" {
   ]
 }
 
-variable "is_lb_private" {
-  description = "If TRUE the load balancer scheme will be \"internal\" else \"internet-facing\""
-}
-
 variable "vpc_id" {
   description = "VPC id were we'll deploy the bastion"
 }
@@ -63,16 +59,6 @@ variable "bastion_ami" {
   default     = ""
 }
 
-variable "elb_subnets" {
-  type        = list(string)
-  description = "List of subnet were the ELB will be deployed"
-}
-
-variable "auto_scaling_group_subnets" {
-  type        = list(string)
-  description = "List of subnet were the Auto Scalling Group will deploy the instances"
-}
-
 variable "associate_public_ip_address" {
   default = true
 }
@@ -88,16 +74,6 @@ variable "create_dns_record" {
 variable "log_auto_clean" {
   description = "Enable or not the lifecycle"
   default     = false
-}
-
-variable "log_standard_ia_days" {
-  description = "Number of days before moving logs to IA Storage"
-  default     = 30
-}
-
-variable "log_glacier_days" {
-  description = "Number of days before moving logs to Glacier"
-  default     = 60
 }
 
 variable "log_expiry_days" {
